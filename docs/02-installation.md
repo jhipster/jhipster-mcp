@@ -49,6 +49,20 @@ Then restart the app.
 
 Use the same `command` / `args` pair in whatever MCP config your host exposes.
 
+### Streamable HTTP mode (remote / containerized / web hosts)
+
+By default `jhipster-mcp` runs over **stdio**. To expose it over **Streamable HTTP** (`POST`/`GET`/`DELETE` on `/mcp`), pass `--http` (or set `JHIPSTER_MCP_TRANSPORT=http`):
+
+```bash
+# Default bind: http://127.0.0.1:3333/mcp
+npx -y jhipster-mcp --http --port 3333
+
+# Or via environment variables
+JHIPSTER_MCP_TRANSPORT=http JHIPSTER_MCP_PORT=3333 npx -y jhipster-mcp
+```
+
+Then configure your MCP client to connect to `http://127.0.0.1:3333/mcp`. When binding to a non-loopback address (e.g. `--host 0.0.0.0` inside Docker), you must also set `JHIPSTER_MCP_ROOT` to confine filesystem writes — see [Server configuration](08-advanced-and-customization.md#server-configuration-environment-variables--cli-flags).
+
 ### Optional: sandbox & pin via environment variables
 
 You can confine the server to a directory, pin the generator version, or force default flags by adding an `env` block to the config above (`JHIPSTER_MCP_ROOT`, `JHIPSTER_MCP_GENERATOR_VERSION`, `JHIPSTER_MCP_DEFAULT_ARGS`). All optional — see [Server configuration](08-advanced-and-customization.md#server-configuration-environment-variables).

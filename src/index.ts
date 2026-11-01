@@ -1,7 +1,12 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import pkg from "../package.json" with { type: "json" };
 
+import { readConfig } from "./config.js";
+import { startHttpServer } from "./http.js";
 import { registerValidateJdl } from "./tools/validateJdl.js";
 import { registerCreateAppFromJdl } from "./tools/createAppFromJdl.js";
 import { registerImportJdl } from "./tools/importJdl.js";
@@ -21,7 +26,8 @@ import { registerScaffoldCrudMonolith } from "./prompts/scaffoldCrudMonolith.js"
 import { registerAddAuditFields } from "./prompts/addAuditFields.js";
 import { registerMonolithToMicroservices } from "./prompts/monolithToMicroservices.js";
 
-async function main(): Promise<void> {
+/** Construct a fresh McpServer with all tools, resources, and prompts registered. */
+export function createServer(): McpServer {
   const server = new McpServer({
     name: pkg.name,
     version: pkg.version,
@@ -46,11 +52,41 @@ async function main(): Promise<void> {
   registerAddAuditFields(server);
   registerMonolithToMicroservices(server);
 
+  return server;
+}
+
+export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
+  const cfg = readConfig(process.env, argv);
+
+  if (cfg.transport === "http") {
+    const handle = await startHttpServer({
+      host: cfg.host,
+      port: cfg.port,
+      rootDir: cfg.rootDir,
+      createServer,
+    });
+    console.error(`[jhipster-mcp] Streamable HTTP server listening on ${handle.url}`);
+    return;
+  }
+
+  const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
-main().catch((err) => {
-  console.error("[jhipster-mcp] fatal:", err);
-  process.exit(1);
-});
+function isDirectEntry(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return fs.realpathSync(entry) === fs.realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return path.resolve(entry) === fileURLToPath(import.meta.url);
+  }
+}
+
+if (isDirectEntry()) {
+  main().catch((err) => {
+    console.error("[jhipster-mcp] fatal:", err);
+    process.exit(1);
+  });
+}

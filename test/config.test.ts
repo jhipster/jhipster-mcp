@@ -1,7 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { readConfig, assertWithinRoot, jhipsterCommand, jhipsterCommandForVersion } from "../src/config.js";
+import {
+  readConfig,
+  assertWithinRoot,
+  assertSafeHttpConfig,
+  isLoopbackHost,
+  jhipsterCommand,
+  jhipsterCommandForVersion,
+} from "../src/config.js";
 
 describe("readConfig", () => {
   it("defaults to empty when nothing is set", () => {
@@ -9,6 +16,51 @@ describe("readConfig", () => {
     assert.equal(c.rootDir, undefined);
     assert.deepEqual(c.defaultArgs, []);
     assert.equal(c.generatorVersion, undefined);
+    assert.equal(c.transport, "stdio");
+    assert.equal(c.host, "127.0.0.1");
+    assert.equal(c.port, 3333);
+  });
+
+  it("reads transport, host, and port from environment variables", () => {
+    const c = readConfig({
+      JHIPSTER_MCP_TRANSPORT: "http",
+      JHIPSTER_MCP_HOST: "0.0.0.0",
+      JHIPSTER_MCP_PORT: "4567",
+    });
+    assert.equal(c.transport, "http");
+    assert.equal(c.host, "0.0.0.0");
+    assert.equal(c.port, 4567);
+  });
+
+  it("lets CLI flags override environment variables", () => {
+    const c = readConfig(
+      {
+        JHIPSTER_MCP_TRANSPORT: "stdio",
+        JHIPSTER_MCP_HOST: "127.0.0.1",
+        JHIPSTER_MCP_PORT: "3333",
+      },
+      ["--http", "--host", "localhost", "--port", "8088"],
+    );
+    assert.equal(c.transport, "http");
+    assert.equal(c.host, "localhost");
+    assert.equal(c.port, 8088);
+  });
+
+  it("supports --transport=http, --host=..., --port=..., and --stdio flags", () => {
+    const c = readConfig({}, ["--transport=http", "--host=::1", "--port=0"]);
+    assert.equal(c.transport, "http");
+    assert.equal(c.host, "::1");
+    assert.equal(c.port, 0);
+
+    const c2 = readConfig({ JHIPSTER_MCP_TRANSPORT: "http" }, ["--stdio"]);
+    assert.equal(c2.transport, "stdio");
+  });
+
+  it("rejects invalid transport or port values", () => {
+    assert.throws(() => readConfig({ JHIPSTER_MCP_TRANSPORT: "ws" }), /must be "stdio" or "http"/);
+    assert.throws(() => readConfig({}, ["--transport", "grpc"]), /must be "stdio" or "http"/);
+    assert.throws(() => readConfig({ JHIPSTER_MCP_PORT: "70000" }), /between 0 and 65535/);
+    assert.throws(() => readConfig({}, ["--port", "abc"]), /between 0 and 65535/);
   });
 
   it("resolves an absolute root and rejects a relative one", () => {
@@ -73,5 +125,28 @@ describe("jhipsterCommandForVersion", () => {
   });
   it("rejects an unsafe version string", () => {
     assert.throws(() => jhipsterCommandForVersion("8;rm"), /Invalid generator version/);
+  });
+});
+
+describe("isLoopbackHost & assertSafeHttpConfig", () => {
+  it("recognizes loopback hosts", () => {
+    assert.equal(isLoopbackHost("127.0.0.1"), true);
+    assert.equal(isLoopbackHost("127.0.1.1"), true);
+    assert.equal(isLoopbackHost("localhost"), true);
+    assert.equal(isLoopbackHost("::1"), true);
+    assert.equal(isLoopbackHost("[::1]"), true);
+    assert.equal(isLoopbackHost("0.0.0.0"), false);
+    assert.equal(isLoopbackHost("192.168.1.10"), false);
+  });
+
+  it("requires JHIPSTER_MCP_ROOT when bound to a non-loopback host", () => {
+    assert.doesNotThrow(() => assertSafeHttpConfig({ defaultArgs: [], host: "127.0.0.1" }));
+    assert.throws(
+      () => assertSafeHttpConfig({ defaultArgs: [], host: "0.0.0.0" }),
+      /Refusing to bind HTTP transport to non-loopback host/,
+    );
+    assert.doesNotThrow(() =>
+      assertSafeHttpConfig({ defaultArgs: [], host: "0.0.0.0", rootDir: path.resolve("/srv/apps") }),
+    );
   });
 });
