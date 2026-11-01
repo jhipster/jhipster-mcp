@@ -4,15 +4,18 @@
 
 Once you're comfortable with the basics, here's how to bend the server to your workflow.
 
-## Server configuration (environment variables)
+## Server configuration (environment variables & CLI flags)
 
-The server reads three optional environment variables at startup. They're set by your **host's MCP config** (the `env` block alongside `command`/`args`), and they let you confine, pin, and standardize the server — useful when exposing it to less-trusted callers or locking a team to one generator version. **All three are opt-in: with none set, the server behaves exactly as the rest of these docs describe.**
+The server reads optional environment variables and CLI flags at startup. They're set by your **host's MCP config** (the `env` block alongside `command`/`args`) or when launching the HTTP server directly, and they let you confine, pin, and standardize the server — useful when exposing it to less-trusted callers or locking a team to one generator version. **All options are opt-in: with none set, the server behaves exactly as the rest of these docs describe.**
 
-| Variable | Effect |
-|----------|--------|
-| `JHIPSTER_MCP_ROOT` | An **absolute** directory the server refuses to escape. Any `workingDirectory` (or resource `dir`) that isn't the root or inside it — including `..` traversal — is rejected before anything is created or run. A path-jail/sandbox. |
-| `JHIPSTER_MCP_DEFAULT_ARGS` | Whitespace-separated flags appended to **every** `jhipster` invocation (e.g. `--no-insight --skip-install`). Validated for shell-safety at startup. |
-| `JHIPSTER_MCP_GENERATOR_VERSION` | Pins the generator. When set, runs dispatch via `npx -y -p generator-jhipster@<version> jhipster …` instead of your global binary, so the exact version runs regardless of what's installed. |
+| Variable | CLI flag | Effect |
+|----------|----------|--------|
+| `JHIPSTER_MCP_ROOT` | — | An **absolute** directory the server refuses to escape. Any `workingDirectory` (or resource `dir`) that isn't the root or inside it — including `..` traversal — is rejected before anything is created or run. A path-jail/sandbox. |
+| `JHIPSTER_MCP_DEFAULT_ARGS` | — | Whitespace-separated flags appended to **every** `jhipster` invocation (e.g. `--no-insight --skip-install`). Validated for shell-safety at startup. |
+| `JHIPSTER_MCP_GENERATOR_VERSION` | — | Pins the generator. When set, runs dispatch via `npx -y -p generator-jhipster@<version> jhipster …` instead of your global binary, so the exact version runs regardless of what's installed. |
+| `JHIPSTER_MCP_TRANSPORT` | `--http`, `--stdio`, `--transport <stdio\|http>` | Transport mode: `"stdio"` (default) or `"http"` (Streamable HTTP mounted at `/mcp`). CLI flags take precedence over environment variables. |
+| `JHIPSTER_MCP_HOST` | `--host <host>` | Interface to bind in HTTP mode (default `127.0.0.1`). Binding to a non-loopback address requires `JHIPSTER_MCP_ROOT` to be set. |
+| `JHIPSTER_MCP_PORT` | `--port <port>` | TCP port to bind in HTTP mode (default `3333`; `0` selects an ephemeral port). |
 
 Example host config:
 
